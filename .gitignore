@@ -1,0 +1,36 @@
+# Build outputs and local dependencies
+**/target/
+**/node_modules/
+**/dist/
+*.tsbuildinfo
+coverage/
+*.log
+
+# Secrets (only templates belong in Git)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Private voice sources, recordings and generated audio
+private/
+recordings/
+voices/
+audio/
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+*.aac
+*.aiff
+*.aif
+*.opus
+*.webm
+
+# Local editor / OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
