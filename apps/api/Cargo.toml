@@ -8,7 +8,7 @@ publish = false
 axum = "0.8"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
 serde = { version = "1", features = ["derive"] }
-# Reserved for future providers; no external request is made in M0.
+# Reserved for future providers; M1 Mock makes no external request.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [dev-dependencies]
