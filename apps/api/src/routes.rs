@@ -37,7 +37,13 @@ struct ErrorDetail {
 }
 
 fn error(status: StatusCode, code: &'static str, message: &'static str) -> Response {
-    (status, Json(ErrorResponse { error: ErrorDetail { code, message } })).into_response()
+    (
+        status,
+        Json(ErrorResponse {
+            error: ErrorDetail { code, message },
+        }),
+    )
+        .into_response()
 }
 
 async fn generate(payload: Result<Json<GenerateRequest>, JsonRejection>) -> Response {
@@ -62,11 +68,15 @@ async fn generate(payload: Result<Json<GenerateRequest>, JsonRejection>) -> Resp
         Ok(request) => (
             [
                 (header::CONTENT_TYPE, "audio/wav"),
-                (header::CONTENT_DISPOSITION, "attachment; filename=\"labonneia-test.wav\""),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"labonneia-test.wav\"",
+                ),
                 (header::CACHE_CONTROL, "no-store"),
             ],
             tts::generate(request),
-        ).into_response(),
+        )
+            .into_response(),
         Err(invalid) => error(StatusCode::BAD_REQUEST, invalid.code, invalid.message),
     }
 }

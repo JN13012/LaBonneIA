@@ -1,90 +1,93 @@
 # LaBonneIA
 
 Future plateforme d’assistants vocaux IA personnalisables. Maria sera l’agent
-par défaut ; le nom, la voix, la personnalité et les capacités pourront ensuite
-être personnalisés. La première étape produit est **LaBonneIA Studio**.
+par défaut ; le premier produit est **LaBonneIA Studio**.
 
-## Disponible — M0
+## Disponible — M1 : Studio simulé
 
-- Page d’accueil statique React + TypeScript + Tailwind CSS.
-- API Rust / Axum : `GET /health` → `{"status":"ok"}`.
-- Test automatisé du endpoint et CI Rust / frontend.
+- Éditeur de texte avec compteur et limite de 2 000 caractères Unicode.
+- Deux voix **fictives**, vitesse, stabilité et similarité de démonstration.
+- Envoi au backend, validation, chargement et erreurs compréhensibles.
+- Écoute et téléchargement d’un WAV de test : **deux bips fixes, aucune parole**.
+- `GET /health` conservé ; `POST /api/tts/generate` ajouté et testé.
 
-La synthèse vocale, le clonage et l’export audio sont futurs. Aucun appel
-ElevenLabs, audio généré, compte, base de données ou LLM dans ce jalon.
-Le socle M0 est validé localement, y compris Rust et le contrôle HTTP réel de
-`/health`. La CI distante reste à exécuter lors d’un push ou d’une PR autorisé.
-Voir le [rapport de vérification](docs/VERIFICATION.md).
+Le texte, la voix et les réglages ne changent pas le signal. Aucun clone vocal,
+appel ElevenLabs, clé API, LLM, STT, compte, base de données ou stockage audio
+serveur. L’audio reste en mémoire ; le téléchargement est une action explicite
+de l’utilisateur. Le portfolio reste un projet distinct.
 
-## Structure et stack
+M0 a été publié sur `main` à `3366112699970637bc92dbf151439655ddd2bc0d`.
+Les résultats M1 réellement exécutés sont dans [VERIFICATION.md](docs/VERIFICATION.md).
+
+## Structure
 
 ```text
-apps/web/                React 19, Vite 7, TypeScript 5.9, Tailwind CSS 4
-apps/api/                Rust stable, Axum 0.8, Tokio 1, Serde 1, Reqwest 0.12
-  src/main.rs            Démarrage, configuration du port et erreurs
+apps/web/                React, TypeScript, Vite, Tailwind CSS
+  src/App.tsx            Formulaire, états, lecteur et cycle de vie des Object URLs
+  src/tts.ts             Contrat client, requête HTTP et contrôle du WAV reçu
+  src/index.css          Présentation responsive et réduction des animations
+apps/api/                Un seul crate Rust : Axum, Tokio, Serde
+  src/main.rs            Démarrage sur la boucle locale et arrêt gracieux
   src/lib.rs             Construction du routeur
-  src/routes.rs          Route et handler de santé
-  tests/health.rs        Test HTTP en mémoire
-.github/workflows/ci.yml Contrôles sur pushes et pull requests
+  src/routes.rs          HTTP, erreurs JSON, limite de corps et réponses audio
+  src/tts.rs             Contrat typé, validation et service de génération
+  src/tts/mock.rs        Générateur WAV sans réseau ni fichier
+  tests/                 Tests des routes santé et TTS
+.github/workflows/ci.yml Contrôles Rust et React sur pushes et pull requests
 docs/                    Produit, architecture, feuille de route, vérification
 ```
 
-## Prérequis
+## Démarrer localement
 
-Node.js 24 et npm, Git, Rust stable avec Cargo, rustfmt et Clippy. Les outils
-système ne sont pas installés automatiquement par le projet.
+Prérequis : Node.js 24 et npm, Git, Rust stable avec Cargo, rustfmt et Clippy.
+Aucun outil système n’est installé automatiquement.
 
-Si Rust manque sous Linux / WSL, suivre la [procédure officielle rustup](https://rust-lang.org/tools/install/).
-À lancer soi-même après lecture du script et de ses options :
+Terminal API :
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/labonneia-rustup-init.sh
-sh /tmp/labonneia-rustup-init.sh --default-toolchain stable --profile minimal
-. "$HOME/.cargo/env"
-rustup component add rustfmt clippy
-rustc --version
-cargo --version
+cd /home/cyber/work/LaBonneIA/apps/api
+# Si nécessaire dans WSL : . "$HOME/.cargo/env"
+cargo run --locked
 ```
 
-Si le linker C manque, installer les outils de compilation de la distribution
-(par exemple `build-essential` sous Ubuntu). Si Node/npm ou Git manquent,
-suivre les procédures officielles de [Node.js](https://nodejs.org/en/download)
-et [Git](https://git-scm.com/downloads) pour le système utilisé. Aucune de ces
-installations n’est effectuée par les scripts du dépôt.
-
-## Développement
-
-Terminal frontend, depuis la racine :
+Terminal frontend :
 
 ```bash
-cd apps/web
+cd /home/cyber/work/LaBonneIA/apps/web
 npm ci
 npm run dev
 ```
 
-Ouvrir <http://127.0.0.1:5173>. Le port est strict : s’il est occupé, Vite échoue.
+Ouvrir <http://127.0.0.1:5173>, modifier le texte et les réglages, cliquer sur
+**Tester la génération**, puis écouter les deux bips et télécharger le WAV.
+Le lecteur ne démarre pas automatiquement. Modifier une entrée efface le
+résultat précédent. L’interface abandonne une requête après 15 secondes.
 
-Terminal API, depuis la racine :
+Les serveurs écoutent exclusivement sur `127.0.0.1`. Vite relaie `/api` vers
+`http://127.0.0.1:3000` sans CORS permissif. Les ports frontend sont stricts :
+si 5173 est occupé, choisir `npm run dev -- --port 5174`. Ne pas arrêter un
+serveur préexistant. `API_PORT=3001 cargo run --locked` change le port backend ;
+il faut alors adapter la cible du proxy dans `apps/web/vite.config.ts`.
+Ctrl+C arrête chaque serveur.
 
-```bash
-cd apps/api
-cargo run
-```
+Aucun `.env` ni secret n’est nécessaire. `.env.example` documente les variables
+futures, sans chargement automatique. Une future clé fournisseur restera
+exclusivement côté backend, jamais dans `VITE_*`.
 
-Puis dans un autre terminal :
+## Contrôle HTTP
 
 ```bash
 curl --fail --show-error http://127.0.0.1:3000/health
-# Attendu : {"status":"ok"}
+# {"status":"ok"}
+
+# Via le frontend et son proxy. Le fichier reste hors du dépôt.
+curl --fail --show-error http://127.0.0.1:5173/api/tts/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Bonjour","voice_id":"mock-alba","speed":1,"stability":0.5,"similarity":0.75}' \
+  -o /tmp/labonneia-test.wav
 ```
 
-L’API écoute uniquement sur `127.0.0.1`. Pour changer le port :
-`API_PORT=3001 cargo run`. Un port invalide ou occupé fait échouer le démarrage
-avec un message et un code non nul. Ctrl+C arrête le serveur.
-
-`.env.example` documente les variables ; aucun chargement automatique de `.env`
-n’est implémenté. Aucun secret n’est nécessaire pour M0. La future clé
-`ELEVENLABS_API_KEY` sera réservée au backend, jamais dans `VITE_*`.
+Contrat, erreurs et limites détaillés dans [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Validation
 
@@ -97,11 +100,6 @@ cargo test --locked
 cargo build --locked
 ```
 
-`apps/api/Cargo.lock` est fourni et conservé pour fixer les dépendances Rust.
-Les contrôles CI utilisent `--locked` afin de refuser une modification implicite
-de cette résolution. Le fichier sera versionné avec le crate lors d’un commit
-explicitement autorisé.
-
 Depuis `apps/web` :
 
 ```bash
@@ -111,19 +109,24 @@ npm run build
 npm run preview
 ```
 
-La prévisualisation du build est sur <http://127.0.0.1:4173>.
-À la racine : `git diff --check`. La CI exécute les quatre contrôles Rust et
-les trois commandes d’installation / validation frontend sur pushes et PR.
-Aucun push n’est nécessaire pour travailler localement.
+La prévisualisation est sur <http://127.0.0.1:4173>. Le build statique ne
+fournit pas lui-même de serveur API ; un futur déploiement nécessitera une
+origine commune avec routage `/api`. M1 ne livre pas de déploiement public.
 
-## Documents
+À la racine : `git diff --check`. Les deux lockfiles sont conservés.
+La CI exécute les contrôles Rust et frontend. Les exécutions du commit publié
+sont consultables dans [GitHub Actions](https://github.com/JN13012/LaBonneIA/actions/workflows/ci.yml).
+Le rapport distingue les validations locales du résultat des jobs distants.
 
-- [Vision et périmètre V1, V2, V3](docs/PRODUCT.md)
-- [Architecture et flux TTS futur](docs/ARCHITECTURE.md)
-- [Jalons M0 à M4](docs/ROADMAP.md)
+## Documents et suite
+
+- [Produit disponible et vision future](docs/PRODUCT.md)
+- [Architecture et contrat HTTP](docs/ARCHITECTURE.md)
+- [Feuille de route](docs/ROADMAP.md)
 - [Rapport de vérification](docs/VERIFICATION.md)
-- [Règles de contribution pour les agents](AGENTS.md)
+- [Règles de travail](AGENTS.md)
 
-Les sources vocales, enregistrements et exports privés sont exclus de Git.
-Tout futur appel payant requiert une autorisation explicite. M1 ne démarre pas
-automatiquement à la fin de M0.
+M1 s’arrête au Mock. M2, tout appel payant et toute utilisation d’une voix
+réelle nécessitent une demande et les autorisations adaptées. La clôture M1
+comprend une publication sur `origin/main` explicitement autorisée ; elle ne
+déclenche pas M2.

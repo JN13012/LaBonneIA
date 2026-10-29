@@ -1,140 +1,159 @@
-# Vérification M0.1 — 28 octobre 2026
+# Vérification de clôture M1 — 29 octobre 2026
 
-## État
+## Résultat local avant publication
 
-**PASS : tous les critères M0 vérifiables localement sont validés.** Le blocage
-Rust du premier passage M0 est levé : compilation, qualité, test automatisé et
-requête HTTP réelle sur l’API démarrée passent. Le frontend est revérifié.
-La configuration CI est vérifiée statiquement et ses commandes passent en local ;
-son exécution sur GitHub reste non vérifiée, sans push ni PR autorisé.
+**PASS : le Studio Mock est validé de bout en bout.** Les contrôles Rust et
+React, les endpoints réels, le WAV et le parcours navigateur ont été rejoués
+pour cette clôture. Aucune nouvelle anomalie fonctionnelle trouvée.
 
-Aucune fonctionnalité M1, aucun appel ElevenLabs, audio, commit ou push.
+Le texte n’est pas prononcé : toutes les entrées valides produisent deux bips
+fixes. Aucun appel ElevenLabs, clone, clé réelle, stockage serveur ou travail
+M2. La publication est explicitement autorisée avec le message
+`feat: implement mock voice studio`, suivie du contrôle des jobs distants.
 
-## Inspection et versions
+Ce rapport consigne les résultats acquis avant le commit de publication.
+Le SHA et les résultats GitHub Actions constatés après le push sont fournis
+dans le compte rendu de clôture. Les exécutions restent consultables dans
+[GitHub Actions — CI](https://github.com/JN13012/LaBonneIA/actions/workflows/ci.yml).
+
+## Inspection et changements
 
 - Branche `main`, remote `git@github.com:JN13012/LaBonneIA.git`.
-- Les fichiers M0 étaient déjà modifiés / non suivis avant M0.1 ; ce travail est
-  conservé. Aucun changement de branche ni ajout à l’index Git.
-- Rust `1.99.1 (58cf8f9c3 2026-10-13)` et Cargo
-  `1.99.1 (5f94df478 2026-08-27)`, canal `stable-x86_64-unknown-linux-gnu`.
-- Le shell de l’agent n’avait pas hérité du nouveau PATH. L’ajout temporaire
-  `export PATH="/home/cyber/.cargo/bin:$PATH"` a suffi. Aucun outil installé ni
-  configuration système modifiée pendant M0.1.
-- Node.js `24.18.0`, npm `12.2.0`.
+- Départ de clôture : `82da166643462858c41c96b4a98603a6efbef3c4`.
+  Ce commit frontend et son prédécesseur backend `86480b3` sont conservés,
+  sans réécriture de l’historique.
+- `git fetch origin main` puis `git rev-list --left-right --count
+  HEAD...origin/main` : `0 0` avant publication, sans divergence.
+- Modifications de clôture : commentaires de `.env.example`, README,
+  architecture, produit, roadmap et ce rapport ; formatage de `routes.rs` ;
+  ajout du test d’intégration `apps/api/tests/tts.rs` encore non suivi au départ.
+- Aucun refactoring supplémentaire ou fonctionnalité hors M1. Un seul crate.
+- `Cargo.lock`, `package-lock.json`, manifestes de dépendances et workflow CI
+  inchangés pendant cette clôture. Aucun nouveau paquet ni outil système.
 
-Versions résolues dans les lockfiles conservés :
+## Versions
 
-| Composant | Version |
+Rust `1.99.1`, Cargo `1.99.1`, Node.js `24.18.0`, npm `12.2.0`.
+Chromium existant `156.0.8078.4`, utilisé en headless via CDP.
+Dépendances conservées : Axum 0.8.9, React / React DOM 19.3.1,
+TypeScript 5.9.3, Vite 7.3.7 et Tailwind 4.3.3.
+
+Le shell de validation utilise temporairement
+`export PATH="/home/cyber/.cargo/bin:$PATH"`, sans modification système.
+
+## Rust — contrôles rejoués
+
+Depuis `apps/api` :
+
+| Commande | Résultat |
 | --- | --- |
-| Axum | 0.8.9 |
-| Tokio | 1.54.1 |
-| Serde | 1.0.229 |
-| Reqwest | 0.12.28 |
-| Tower (tests) | 0.5.3 |
-| Serde JSON (tests) | 1.0.154 |
-| React / React DOM | 19.3.1 |
-| Vite | 7.3.7 |
-| TypeScript | 5.9.3 |
-| Tailwind CSS / plugin Vite | 4.3.3 |
-| Plugin React Vite | 5.2.0 |
+| `cargo fmt --all` | PASS |
+| `cargo fmt --all -- --check` | PASS |
+| `cargo clippy --locked --all-targets -- -D warnings` | PASS — aucun avertissement |
+| `cargo test --locked` | PASS — 11 tests d’intégration, zéro échec |
+| `cargo build --locked` | PASS |
 
-## Modifications M0.1
+Un test de santé et dix tests TTS couvrent : réponse WAV / en-têtes / tailles /
+échantillons, déterminisme et invariance aux paramètres, texte vide et blanc
+Unicode, longueur 2 000 / 2 001 caractères, espaces compris, voix inconnue,
+paramètres hors limites et bornes inclusives, JSON incorrect, champs absents
+ou inconnus, types et Content-Type incompatibles, requête trop volumineuse.
+Pas d’autres tests unitaires ou doctests dans les suites.
 
-- `cargo fmt --all` exécuté ; aucune correction de code nécessaire.
-- `apps/api/Cargo.lock` généré et conservé, non ignoré par Git. Pas de mise à
-  jour des plages de dépendances du manifeste.
-- CI : ajout de `--locked` à Clippy, aux tests et au build Rust pour empêcher
-  une résolution implicite différente du lockfile.
-- README, architecture et roadmap actualisés pour supprimer les mentions de
-  blocage Rust et de lockfile absent.
-- Ce rapport remplace les résultats initiaux bloqués par les résultats M0.1.
+Le chemin Mock est synchrone et pur : aucune utilisation de Reqwest, de fichier
+ou de client fournisseur dans la génération. Le seul réseau de l’API est son
+serveur HTTP local.
 
-Le socle reste constitué d’un frontend statique et d’un seul crate Rust.
-Aucun module métier, fournisseur ou autre composant M1 n’est ajouté.
+## React — contrôles rejoués
 
-## Contrôles Rust
+Depuis `apps/web` :
 
-Commandes exécutées depuis `apps/api`, avec Rust stable dans le PATH :
+| Commande | Résultat |
+| --- | --- |
+| `npm ci --offline --cache /tmp/labonneia-npm-cache` | PASS — 84 paquets, audit npm sans vulnérabilité signalée |
+| `npm run typecheck` | PASS |
+| `npm run build` | PASS — 30 modules |
 
-| Commande | État | Résultat |
-| --- | --- | --- |
-| `cargo fmt --all` | PASS | Formatage exécuté. |
-| `cargo fmt --all -- --check` | PASS | Aucun écart. |
-| `cargo clippy --all-targets -- -D warnings` | PASS | Aucune alerte ni erreur. |
-| `cargo test` | PASS | 1 test d’intégration réussi, 0 échec ; aucune autre suite ne contient de test. |
-| `cargo build` | PASS | Binaire de développement produit. |
-| `cargo clippy --locked --all-targets -- -D warnings` | PASS | Commande CI exécutée avec le lockfile. |
-| `cargo test --locked` | PASS | Même test de santé réussi. |
-| `cargo build --locked` | PASS | Build avec le lockfile conservé. |
+Build : HTML 0,51 kB, CSS 11,85 kB, JavaScript 231,54 kB.
+npm signale le postinstall esbuild bloqué par la politique locale allowScripts.
+Aucune politique modifiée ; installation, build et serveur Vite fonctionnent.
 
-Le premier essai Cargo a échoué sur la résolution DNS de crates.io dans le
-sandbox (code 101). Une relance avec accès réseau et au cache Cargo a permis
-le téléchargement et la compilation. La suite finale avec `--locked` passe
-dans le sandbox une fois le cache rempli. Aucun appel fournisseur vocal.
+Pas d’infrastructure UI ajoutée au projet. Le navigateur déjà installé est
+piloté par un script Node / CDP temporaire hors dépôt.
 
-Le test `health_returns_ok_json` envoie une requête au routeur en mémoire et
-vérifie HTTP 200, le type `application/json` et le JSON exact `{"status":"ok"}`.
+## Endpoints, WAV et navigateur réels
 
-## API démarrée et contrôles HTTP réels
+Commande : `node /tmp/labonneia-m1-e2e.cjs`.
+Le port 3000 étant déjà occupé, le premier lancement a arrêté la vérification
+avec `EADDRINUSE`, sans démarrer ou arrêter de serveur utilisateur.
+Le script temporaire a été adapté pour utiliser `API_PORT` et une cible de
+proxy Vite sur des ports libres. Le proxy est ajusté uniquement dans la
+configuration de test en mémoire, sans changement des valeurs du dépôt.
 
-Le binaire `apps/api/target/debug/labonneia-api` a été lancé sans `API_PORT`
-pour vérifier les valeurs par défaut. Un script temporaire hors dépôt a envoyé
-une requête HTTP réelle, inspecté l’écoute avec `ss -ltnp`, exercé les erreurs
-et arrêté le processus. Ces opérations locales nécessitaient la sortie du sandbox.
+Dernière exécution complète, code de sortie 0 : API
+`http://127.0.0.1:43347`, frontend `http://127.0.0.1:37981`.
+Les serveurs de test ont été arrêtés ; les serveurs préexistants sont conservés.
+Le dépôt garde les valeurs par défaut API 3000 / Vite 5173 sur `127.0.0.1`.
 
-| Contrôle | État | Résultat |
-| --- | --- | --- |
-| `GET http://127.0.0.1:3000/health` | PASS | HTTP 200, `Content-Type: application/json`, corps exact `{"status":"ok"}`. |
-| Interface et port par défaut | PASS | Une seule socket d’écoute appartenant au processus : `127.0.0.1:3000` ; aucune écoute sur une interface publique. |
-| Second lancement avec port occupé | PASS | Code de sortie 1 et message `Address already in use (os error 98)`. |
-| Lancement avec `API_PORT=invalid` | PASS | Code de sortie 1 et message `invalid digit found in string`. |
-| Arrêt par SIGINT / Ctrl+C | PASS | Arrêt gracieux, code de sortie 0. |
+| Contrôle | Résultat |
+| --- | --- |
+| `GET /health` | PASS — HTTP 200, `{"status":"ok"}` |
+| `POST /api/tts/generate` via le proxy Vite | PASS — HTTP 200, `audio/wav`, `no-store`, 38 444 octets |
+| Entrées invalides par HTTP réel | PASS — erreurs explicites 400 ; corps supérieur à 16 Kio : 413 |
+| JSON mal formé | PASS — HTTP 400 et erreur JSON |
+| Texte initial et contrôles UI | PASS — Sentry, compteur, deux voix fictives ; vide et 2 001 emoji refusés, 2 000 acceptés |
+| Paramètres envoyés | PASS — texte, Nova et vitesse 1,1 présents dans la requête capturée |
+| Chargement | PASS — indicateur visible, doubles envois bloqués, champs désactivés |
+| Lecture HTML5 | PASS — durée 1,2 s, pas d’autoplay, démarrage et progression du temps puis pause |
+| Décodage AudioContext | PASS — mono, 16 kHz, 19 200 échantillons |
+| Téléchargement navigateur | PASS — fichier reçu, octets identiques à la réponse HTTP de référence |
+| Cycle de vie des Object URLs | PASS — trois créées, trois révoquées ; invalidation, remplacement et démontage testés |
+| Erreurs contrôlées | PASS — JSON 400, WAV corrompu, MIME inattendu : erreur lisible, aucun faux lecteur, reprise possible |
+| Délai de 15 secondes | PASS — annulation réelle, message utilisateur, nouvel essai réussi |
+| API réellement arrêtée | PASS — erreur de proxy compréhensible, ancien résultat supprimé |
+| Console et réseau navigateur | PASS — aucune exception JavaScript ou requête HTTP externe |
+| Bureau et mobile | PASS — captures 1 440, 390 et 320 px ; pas de débordement horizontal, captures bureau et mobile inspectées |
+| Accessibilité ciblée | PASS — contrôles nommés et préférence de mouvement réduit |
 
-Le serveur API temporaire a été arrêté après vérification.
+Analyse indépendante du fichier téléchargé avec Python `wave`, puis corrélation
+des échantillons : PCM signé 16 bits, mono, 16 000 Hz, 1,2 s, silences et bips
+660 / 880 Hz confirmés. Aucun texte ou paramètre ne modifie ce signal.
 
-## Frontend
+Preuves temporaires : `/tmp/labonneia-m1-verification/results.json`, captures
+PNG, journaux et WAV téléchargé dans ce même répertoire hors Git.
+La validation headless couvre la lecture technique ; ce passage n’affirme pas
+une écoute humaine ou un audit complet d’accessibilité / de compatibilité.
+L’utilisateur confirme également génération, lecture et téléchargement dans
+son navigateur.
 
-Commandes exécutées depuis `apps/web` :
+## Git, secrets et CI
 
-| Commande / contrôle | État | Résultat |
-| --- | --- | --- |
-| `npm ci --cache /tmp/labonneia-npm-cache --offline` | PASS | Installation reproductible depuis le lockfile et le cache, 84 paquets ajoutés ; audit npm sans vulnérabilité signalée. |
-| `npm run typecheck` | PASS | TypeScript sans erreur. |
-| `npm run build` | PASS | 29 modules ; HTML 0,51 kB, CSS 8,51 kB, JS 224,72 kB. |
-| `npm ls --depth=0` | PASS | Dépendances installées cohérentes. |
-| `npm run dev -- --port <port-local-libre>` | PASS | HTML LaBonneIA Studio et module App transformé servis en HTTP 200. |
-| `npm run preview -- --port <port-local-libre>` | PASS | HTML LaBonneIA Studio et ressources CSS / JS du build servis en HTTP 200. |
+| Contrôle avant publication | Résultat |
+| --- | --- |
+| Périmètre suivi et non suivi | PASS — 27 fichiers admissibles inspectés |
+| Secrets | PASS ciblé — aucun motif de clé connu ou clé privée ; template fournisseur vide ; aucun .env réel admissible |
+| Fichiers privés / artefacts | PASS — aucun audio, binaire ou lien symbolique dans le périmètre admissible |
+| Exclusions | PASS — target, node_modules et dist ignorés ; preuves et WAV uniquement sous /tmp |
+| Lockfiles | PASS — présents, conservés, inchangés |
+| CI statique | PASS — YAML, push / pull_request, contents:read, répertoires et commandes, Node 24 et chemins des lockfiles |
+| Commandes CI locales | PASS — formatage, Clippy, tests et build Rust, installation / typecheck / build React |
+| `git diff --check` | PASS — fichiers non suivis aussi contrôlés séparément |
 
-Le port 5173 était occupé par un serveur préexistant : le premier contrôle HTTP
-frontend a reçu sa page au lieu de celle de LaBonneIA. Ce résultat a été rejeté,
-et les contrôles ont été repris sur des ports libres en conservant `127.0.0.1`.
-Le serveur préexistant n’a pas été modifié ni arrêté ; les serveurs LaBonneIA de
-vérification ont été arrêtés. Pas de validation visuelle en navigateur.
+La CI distante est vérifiée après publication sur le SHA poussé : les deux
+jobs attendus sont **Rust** et **React**. Aucune réussite distante n’est
+anticipée dans ce rapport prépublication. En cas d’échec, seules les anomalies
+nécessaires à la clôture M1 seront corrigées et les contrôles concernés rejoués.
+Le contrôle de secrets repose sur les noms, le contenu et des motifs connus ;
+il ne constitue pas une garantie universelle de détection.
 
-npm 12 signale toujours le postinstall esbuild bloqué par sa politique locale
-`allowScripts`. Aucun assouplissement : installation, build et serveurs passent
-avec les binaires installés. L’audit indiqué porte uniquement sur le frontend.
+## Limites et arrêt du jalon
 
-## CI, Git et exclusions
+Le Mock ne prononce aucun texte. Voix et réglages sont démonstratifs, le signal
+est toujours identique. Aucun fournisseur, clé réelle, clone, LLM, STT,
+téléphonie, réservation, base de données ou stockage audio serveur.
+Le téléchargement demandé crée un fichier sous le contrôle de l’utilisateur.
+Le build statique nécessite un routage API adapté avant tout futur déploiement.
 
-| Contrôle | État | Résultat |
-| --- | --- | --- |
-| YAML CI et structure | PASS | Parsing et assertions : triggers `push` / `pull_request`, permission `contents: read`, répertoires de travail existants, Node 24, chemins des lockfiles et commandes attendues. |
-| Commandes CI | PASS local | fmt, Clippy / tests / build avec `--locked`, installation frontend, typecheck et build exécutés localement. L’installation frontend utilise ici un cache hors ligne. |
-| Workflow sur GitHub | NON EXÉCUTÉ | Aucun push ni PR ; aucune exécution distante affirmée. |
-| `git diff --check` | PASS | Aucun problème dans le diff suivi. |
-| Fichiers nouveaux et suivis | PASS | Contrôle des espaces finaux, sauts de ligne finaux et parsing JSON / TOML, lockfile Rust compris. |
-| Exclusions Git | PASS | Secrets `.env`, fichiers audio et sorties de build exclus ; `.env.example`, `Cargo.lock` et `package-lock.json` admissibles. |
-| Périmètre M0 | PASS | Aucune fonctionnalité M1, aucun appel ElevenLabs, commit ou push. |
-
-La CI a été contrôlée par parsing et assertions ciblées, sans actionlint ni
-exécution du runner GitHub. Ses étapes d’installation sur un runner neuf n’ont
-pas été reproduites dans cet environnement WSL.
-
-## Conclusion et suite
-
-M0 est entièrement validé **localement** ; aucun échec fonctionnel ou blocage
-local ne reste. Le résultat de la CI sur GitHub demeure à confirmer lors d’un
-futur commit/push ou d’une PR explicitement autorisé. Les modifications, dont
-les deux lockfiles, restent inspectables sans commit. M0.1 s’arrête ici ; M1
-requiert une nouvelle demande.
+M1 s’arrête à cette clôture et sa publication autorisée. M2 n’est pas commencé.
+Les commandes de démarrage et le contrat complet restent dans README.md et
+ARCHITECTURE.md. Aucune intégration fournisseur ni essai payant automatique.
